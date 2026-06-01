@@ -1,0 +1,31 @@
+# ShopScope — Python dependencies
+# Install with: pip install -r requirements.txt
+
+# Core data
+pandas>=2.0.0
+numpy>=1.24.0
+
+# PySpark (Module 3)
+pyspark>=3.4.0
+
+# Workflow orchestration (Module 2)
+apache-airflow>=2.7.0
+
+# Machine learning (Module 4)
+scikit-learn>=1.3.0
+
+# Visualization / dashboard
+streamlit>=1.28.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.17.0
+
+# Database
+sqlalchemy>=2.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+
+# For Azure SQL (Module 3 optional)
+pyodbc>=4.0.39
