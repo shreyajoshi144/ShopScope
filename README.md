@@ -1,406 +1,290 @@
+# ShopScope — Azure Data Engineering Pipeline
 
-# ShopScope — Retail Campaign Intelligence Platform
-
-Retail campaign intelligence platform — ETL pipeline, customer RFM segmentation, discount dependency analysis, and regional campaign analytics using Python, Airflow, PySpark, SQL, and Tableau.
-
-ShopScope is an end-to-end retail analytics pipeline built around a real e-commerce dataset (Olist, 100K+ orders). It automates retail data workflows using an Airflow DAG (6 tasks), computes customer intelligence metrics including RFM segmentation and health scoring, identifies discount-dependent customers, analyses regional campaign performance, and detects anomalies in sales patterns.
-
-The pipeline runs: raw CSV → validation → PySpark aggregations → SQL KPI layer → customer intelligence → Tableau dashboard exports.
-
-Built to explore enterprise analytics workflows: Airflow orchestration, PySpark-style distributed aggregations, SQL KPI modelling, and Tableau dashboard design — using a production-inspired architecture rather than a notebook analysis.
-
----
-
-## Problem Statement 
-
-Retail companies collect millions of transactions across brands, regions, channels, and seasons — but most analytics tools only show *what already happened*. They don't help teams answer forward-looking questions like:
-
-- Which customers are likely to churn and should be targeted in the next campaign?
-- Which regions are underperforming relative to their historical baseline?
-- Which customers only buy during discounts — and are they profitable?
-- Which campaigns actually drove revenue, and which just increased cost?
-- Where are the highest-opportunity customer segments right now?
-
-**ShopScope is built to answer these questions.** It ingests raw retail transaction data, runs it through a validated ETL pipeline, computes customer intelligence scores and RFM segments, analyses campaign and regional performance, detects anomalies, and delivers everything through three business-ready Tableau dashboards.
-
----
-
-## Architecture 
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     AIRFLOW ORCHESTRATION LAYER                     │
-│          Daily DAG: extract → validate → transform → load → export  │
-│               Retries · SLA monitoring · Task dependencies          │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │
-           ┌─────────────────┴─────────────────┐
-           │                                   │
-  ┌────────▼────────┐                ┌─────────▼────────┐
-  │  Data ingestion  │                │   PySpark layer   │
-  │  Load · validate │                │  Aggregations ·   │
-  │  clean · schema  │                │  KPI computation  │
-  └────────┬────────┘                └─────────┬────────┘
-           └─────────────────┬─────────────────┘
-                             │
-                    ┌────────▼────────┐
-                    │  SQL KPI layer   │
-                    │ customer_kpis ·  │
-                    │ campaign_metrics │
-                    │ regional_metrics │
-                    └────────┬────────┘
-                             │
-           ┌─────────────────┴──────────────────┐
-           │                                    │
-  ┌────────▼────────┐                 ┌─────────▼────────┐
-  │   Customer       │                 │    Campaign       │
-  │  intelligence    │                 │    analytics      │
-  │  Health score ·  │                 │  ROI · regional · │
-  │  RFM · segments  │                 │  discount impact  │
-  └────────┬────────┘                 └─────────┬────────┘
-           └─────────────────┬──────────────────┘
-                             │
-                    ┌────────▼────────┐
-                    │ Anomaly detection│
-                    │ Statistical ·    │
-                    │ rolling average  │
-                    └────────┬────────┘
-                             │
-           ┌─────────────────┼──────────────────┐
-           │                 │                  │
-  ┌────────▼──────┐ ┌────────▼──────┐ ┌────────▼──────┐
-  │   Campaign     │ │   Customer    │ │  Geographic   │
-  │   dashboard    │ │   dashboard   │ │   dashboard   │
-  │  ROI · funnel  │ │ Health · RFM  │ │  Map · region │
-  └───────────────┘ └───────────────┘ └───────────────┘
-                    Tableau (production) · Streamlit (local)
-```
-
----
-## Working Pipeline 
-<img width="579" height="460" alt="Screenshot 2026-05-28 at 3 39 10 PM" src="https://github.com/user-attachments/assets/824c04f8-214f-4f7a-93ec-5bb03f276ccc" />
-
-
+> End-to-end cloud data pipeline processing the Olist Brazilian e-commerce dataset across Azure Data Factory, ADLS Gen2, Databricks, and Delta Lake, orchestrated with Apache Airflow.
 
 
 ---
- 
-## Tech stack
 
-| Layer | Tool | Purpose |
-|---|---|---|
-| Orchestration | Apache Airflow | Daily DAG scheduling, task dependencies, retries |
-| Scalable processing | PySpark | Customer aggregations, regional KPIs, channel metrics |
-| Warehouse / SQL | Apache Hive concepts · SQLite (local) | Partitioned storage, analytical queries |
-| Cloud concepts | Azure Blob Storage · Azure Databricks | Production-oriented design patterns |
-| ML / scoring | Scikit-learn | Customer health scoring, lightweight segmentation |
-| Dashboards | Tableau | Campaign, customer, and geographic dashboards |
-| Local dashboard | Streamlit | Development and demo interface |
-| Data processing | Python · Pandas · NumPy | ETL logic, transformations, validation |
+## What This Project Does
+
+ShopScope ingests 9 Olist e-commerce datasets (99K+ orders, 1M+ geolocation records, 112K+ order items) from raw CSV files into a cloud lakehouse. The pipeline validates data quality at ingestion, transforms and enriches records into an analytics-ready master table, and writes curated output to Delta Lake — with the entire workflow orchestrated and monitored by Apache Airflow.
+
+The goal is a production-style data engineering workflow: layered storage, automated quality gates, business-level transformations, and reliable orchestration.
+
+---
+
+## Architecture
+
+<img width="2720" height="2080" alt="shopscope_architecture" src="https://github.com/user-attachments/assets/ccad0a7f-1214-46bf-8008-73d6589f185f" />
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Ingestion | Azure Data Factory |
+| Storage | Azure Data Lake Storage Gen2, Delta Lake |
+| Processing | Azure Databricks, Apache Spark, PySpark |
+| Orchestration | Apache Airflow |
+| Language | Python, SQL |
 
 ---
 
 ## Dataset
 
-**Brazilian E-Commerce Public Dataset by Olist** (available on Kaggle)
+The [Olist Brazilian E-Commerce dataset](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce) contains 9 relational CSV files covering the full order lifecycle:
 
-Contains: customer data · order transactions · product information · payment records · timestamps · seller data · delivery metrics · customer reviews · geographic information
-
-This dataset naturally supports:
-- Customer segmentation and RFM analysis
-- Campaign and discount impact analysis
-- Regional performance and geographic visualisation
-- Retention and churn analysis
-- KPI generation across brands and channels
+| File | Records | Columns |
+|---|---|---|
+| olist_customers_dataset.csv | 99,441 | 5 |
+| olist_geolocation_dataset.csv | 1,000,163 | 5 |
+| olist_order_items_dataset.csv | 112,650 | 7 |
+| olist_order_payments_dataset.csv | 103,886 | 5 |
+| olist_order_reviews_dataset.csv | 104,162 | 7 |
+| olist_orders_dataset.csv | 99,441 | 8 |
+| olist_products_dataset.csv | 32,951 | 9 |
+| olist_sellers_dataset.csv | 3,095 | 4 |
+| product_category_name_translation.csv | 71 | 2 |
 
 ---
 
-## Project structure
+## Pipeline Walkthrough
+
+### Step 1: Data Ingestion using Azure Data Factory
+
+The first stage of the pipeline focuses on data ingestion.
+
+Azure Data Factory is used to extract transaction data from the source system and load it into Azure Data Lake Storage Gen2.
+
+This stage separates ingestion from processing and ensures that source data is preserved before any transformations occur.
+
+Key Activities:
+
+Pipeline creation in Azure Data Factory
+Data movement from source to cloud storage
+Automated ingestion workflow
+Raw data landing in ADLS Gen2
+
+<img width="1470" height="799" alt="Screenshot 2026-06-20 at 12 20 12 PM" src="https://github.com/user-attachments/assets/99a6c6d7-72b1-4fa7-9d1f-c53f77cae4ee" />
+<img width="1470" height="799" alt="Screenshot 2026-06-20 at 12 30 42 PM" src="https://github.com/user-attachments/assets/2c12f25f-3525-4e17-b4d5-4a67c495277f" />
+<img width="1470" height="805" alt="Screenshot 2026-06-22 at 10 40 17 AM" src="https://github.com/user-attachments/assets/fcdca774-33f7-461a-9d7a-b237bf2ad810" />
+
+
+Outcome:
+
+All source transaction data is successfully transferred into the Raw Layer of Azure Data Lake Storage Gen2.
+
+---
+
+### Stage Step 2: Raw Data Storage in Azure Data Lake Storage Gen2
+
+After ingestion, transaction files are stored in the Raw Layer of Azure Data Lake Storage Gen2.
+
+The raw layer serves as the system of record and preserves original datasets before validation and transformation.
+
+Benefits:
+
+Data traceability
+Historical retention
+Reprocessing capability
+Centralized cloud storage
+
+Outcome:
+
+Raw transaction datasets are available for downstream processing.
+```
+shopscope2026/
+├── raw/          ← original Olist CSVs land here
+├── processed/    ← validated, transformed data
+├── exports/      ← downstream-ready outputs
+└── archive/      ← historical snapshots
+```
+
+<img width="1470" height="799" alt="Screenshot 2026-06-20 at 4 47 28 PM" src="https://github.com/user-attachments/assets/43fc6ff3-6f4d-45f4-abf0-63e106c12542" />
+<img width="1470" height="799" alt="Screenshot 2026-06-21 at 12 03 47 AM" src="https://github.com/user-attachments/assets/2990399a-5289-4d9c-a4d0-4ba63da9900b" />
+<img width="1470" height="799" alt="Screenshot 2026-06-20 at 12 44 02 PM" src="https://github.com/user-attachments/assets/cc25985d-ba1c-4f8a-876e-f5d06054dd94" />
+
+
+---
+
+### Step 3 — Data Validation (`01_validate_raw`)
+
+Before any transformation, all 9 datasets pass through a validation notebook in Azure Databricks. Validation runs 6 rule categories across every dataset:
+
+| Check | What it catches |
+|---|---|
+| Null values | Missing values in critical fields |
+| Duplicate records | Exact-row duplicates across the dataset |
+| Required columns | Fields missing from schema definition |
+| Review score validity | Scores outside [1, 2, 3, 4, 5] or malformed |
+| Price validation | Negative or null price values |
+| Dataset completeness | Row count below expected thresholds |
+
+**Validation results from the Olist data:**
+
+| Dataset | Issues | Detail |
+|---|---|---|
+| geolocation | 1 WARNING | 261,831 duplicate rows (26.2% of dataset) |
+| reviews | 4 WARNINGS | 85 duplicate rows; 88.5% null comment titles; 60.6% null comment messages; 2,557 malformed review scores |
+| All others | 0 issues | — |
+| CRITICAL issues | **None** | Pipeline continues |
+
+The pipeline halts automatically if any CRITICAL-severity issue is detected. Warnings are logged and the pipeline proceeds.
+
+<img width="1470" height="805" alt="Screenshot 2026-06-22 at 10 50 14 AM" src="https://github.com/user-attachments/assets/fa33354e-54a4-463f-a363-426cd43d34a9" />
+<img width="1470" height="805" alt="Screenshot 2026-06-22 at 10 50 00 AM" src="https://github.com/user-attachments/assets/8512f5c1-7580-4bfd-be38-61abe0146410" />
+<img width="1470" height="805" alt="Screenshot 2026-06-22 at 10 49 50 AM" src="https://github.com/user-attachments/assets/6eb955d0-c050-4a5f-98f7-9f5b13afa65c" />
+
+
+
+---
+
+### Step 4 — Transformation (`02_build_master_transactions`)
+
+Validated data is joined, enriched, and aggregated into a single order-level master table. Transformations include:
+
+- **Customer enrichment** — join customer city, state, zip to each order
+- **Product category enrichment** — map Portuguese category names to English translations
+- **Order-level aggregation** — total value, freight, item count per order
+- **Payment aggregation** — total payment value, payment type, installment count
+- **Review sentiment classification** — classify review scores into sentiment buckets (positive / neutral / negative)
+- **Delivery performance metrics** — compute delivery duration (order → delivery), flag late deliveries
+- **Revenue metrics** — gross revenue, freight ratio per order
+- **Purchase date analytics** — extract purchase month, day of week, hour
+
+<img width="1470" height="805" alt="Screenshot 2026-06-22 at 10 50 43 AM" src="https://github.com/user-attachments/assets/ee48b50f-4776-4896-81ae-79391c4c68d4" />
+<img width="1470" height="805" alt="Screenshot 2026-06-22 at 10 50 35 AM" src="https://github.com/user-attachments/assets/b4f8801e-9206-4170-bdb0-c82b02ae61aa" />
+
+---
+
+### Step 5 — Delta Lake Write *(in progress)*
+
+The curated `master_transactions` table is written to Delta Lake in the `processed/` container. Delta Lake provides:
+
+- ACID transactions for reliable writes
+- Schema enforcement across pipeline runs
+- Time travel for point-in-time data recovery
+- Optimized columnar storage for analytical queries
+
+**Planned schema (master_transactions):**
+
+```
+order_id, customer_id, customer_city, customer_state,
+order_status, purchase_timestamp, purchase_month, purchase_day_of_week,
+total_order_value, total_freight, item_count,
+total_payment_value, payment_type, payment_installments,
+review_score, sentiment_category,
+product_category_english, delivery_duration_days, is_late_delivery,
+seller_id, seller_city, seller_state
+```
+
+---
+
+### Step 6 — Orchestration (Apache Airflow) *(in progress)*
+
+Apache Airflow orchestrates the full pipeline end-to-end:
+
+```
+[ADF Ingestion trigger]
+        ↓
+[run_validation_notebook]
+        ↓
+[check_critical_failures] ── CRITICAL? ──→ [alert + halt]
+        ↓ (pass)
+[run_master_transactions_notebook]
+        ↓
+[write_delta_table]
+        ↓
+[pipeline_complete_notification]
+```
+
+Features: scheduled runs, dependency management, automatic retries on failure, Slack/email alerts on critical failures.
+
+---
+
+## Business Insights Available
+
+Once the Delta table is populated, it supports analytics including:
+
+- Monthly and quarterly revenue trends
+- Top-performing product categories by revenue and volume
+- Customer distribution by state (Brazil geography)
+- On-time vs late delivery rate by seller and region
+- Payment method split and average installment count
+- Review sentiment trends by category and time period
+
+---
+
+## Current Status
+
+| Stage | Status |
+|---|---|
+| ADF ingestion pipeline | ✅ Complete |
+| ADLS Gen2 storage layout | ✅ Complete |
+| Databricks workspace + ADLS auth | ✅ Complete |
+| Data validation notebook | ✅ Complete |
+| Master transactions notebook | ✅ Complete |
+| Delta Lake write | 🔄 In progress |
+| Airflow orchestration | 🔄 In progress |
+
+---
+
+## Repository Structure
 
 ```
 shopscope/
-│
-├── data/
-│   ├── raw/                          # Original Olist dataset files
-│   ├── processed/                    # Cleaned and transformed tables
-│   └── exports/                      # Dashboard-ready CSV exports
-│
-├── airflow_dags/
-│   └── retail_campaign_pipeline.py   # Main Airflow DAG (6-task pipeline)
-│
-├── pipeline/
-│   ├── extract.py                    # Load raw CSVs, schema check
-│   ├── validate.py                   # Data quality rules, quarantine logic
-│   ├── transform.py                  # Clean, derive KPI columns, joins
-│   ├── spark_jobs.py                 # PySpark aggregation workflows
-│   └── load.py                       # Write to warehouse / SQLite
-│
-├── analytics/
-│   ├── customer_health.py            # Health score computation
-│   ├── discount_dependency.py        # Discount-only buyer identification
-│   ├── campaign_analysis.py          # Campaign ROI and effectiveness
-│   ├── anomaly_detection.py          # Statistical anomaly detection
-│   └── regional_analysis.py          # Region-level opportunity analysis
-│
-├── sql/
-│   ├── customer_kpis.sql             # Repeat rate, frequency, LTV queries
-│   ├── campaign_metrics.sql          # Conversion, ROI, uplift queries
-│   └── regional_metrics.sql          # City and region aggregations
-│
-├── dashboard/
-│   ├── tableau_exports/              # Aggregated CSVs for Tableau
-│   └── streamlit_app.py             # Local dashboard (5 pages)
-│
 ├── notebooks/
-│   ├── eda.ipynb                     # Exploratory data analysis
-│   └── business_analysis.ipynb      # Business insight notebooks
-│
+│   ├── 01_validate_raw.py
+│   └── 02_build_master_transactions.py
+├── airflow/
+│   └── shopscope_dag.py
+├── screenshots/
+│   ├── adf_pipeline.png
+│   ├── adls_containers.png
+│   ├── databricks_workspace.png
+│   ├── validation_report.png
+│   └── master_transactions.png
 ├── docs/
-│   └── architecture.png             # Pipeline architecture diagram
-│
-├── requirements.txt
+│   └── architecture.png
 └── README.md
 ```
 
 ---
 
-## Core modules
+## Key Technical Decisions
 
-### Module 1 — Data ingestion and validation
+**Why Delta Lake over plain Parquet?** Delta Lake adds ACID transactions and schema enforcement. For a multi-stage pipeline where a failed run could partially overwrite data, this prevents corrupted analytical reads.
 
-Loads raw Olist CSV files, enforces schema, removes duplicates, handles nulls, standardises category and location fields, and parses timestamps into usable formats.
+**Why validate before transform?** Catching data quality issues early (at raw ingestion) means transformation logic stays clean and never has to handle malformed inputs. The halt-on-CRITICAL pattern means downstream consumers never see broken data.
 
-**Output:** Clean, validated retail transaction tables ready for analytics processing.
-
-**Key validation rules applied:**
-- Required column presence check
-- Null value handling in critical fields
-- Order amount range validation
-- Timestamp format parsing and standardisation
-- Duplicate order ID detection
-- Category and city name standardisation
+**Why ADLS Gen2 over Blob Storage?** Gen2 adds hierarchical namespace (folder semantics), which maps cleanly to the raw/processed/exports/archive container layout and integrates directly with Databricks via ABFS.
 
 ---
 
-### Module 2 — Airflow ETL pipeline
+## Setup & Reproduction
 
-Automates the full analytics workflow using a scheduled Airflow DAG.
+> Requires: Azure subscription, Databricks workspace, Azure Data Factory, Python 3.8+
 
-**DAG task flow:**
-```
-extract_data
-    ↓
-validate_data
-    ↓
-transform_transactions
-    ↓
-generate_customer_kpis
-    ↓
-run_campaign_analysis
-    ↓
-export_dashboard_data
-```
+1. Upload Olist CSVs to `{storage-account}/raw/` in ADLS Gen2
+2. Configure Databricks linked service in ADF
+3. Run `01_validate_raw` notebook — review validation report
+4. Run `02_build_master_transactions` notebook
+5. *(coming)* Deploy `airflow/shopscope_dag.py` to your Airflow instance
 
-**Schedule:** Daily at 02:00  
-**Retries:** 2 retries with 5-minute delay  
-**Timeout:** 1-hour execution SLA per run
-
-This simulates how production analytics teams automate daily reporting pipelines — the same pattern used at large retail companies.
+Full setup instructions will be added as the project reaches completion.
 
 ---
 
-### Module 3 — PySpark aggregation layer
+## Future Enhancements
 
-Handles scalable retail transaction processing using PySpark DataFrames — demonstrating understanding of distributed-style data processing.
-
-**Aggregations computed:**
-- Customer-level: total spend, order count, avg order value, repeat frequency
-- Regional: revenue by city and state, conversion trends by region
-- Monthly KPIs: revenue trend, customer acquisition, churn indicators
-- Category: product category performance by season
-- Channel: app vs web vs in-store revenue contribution
-
-**Key metrics generated:**
-- Total revenue per customer / region / category
-- Average order value
-- Repeat purchase frequency
-- Simplified customer lifetime value
-- Discount utilisation rate
+- Incremental data loading (process only new records)
+- Delta Lake optimization (OPTIMIZE + ZORDER on order_id, purchase_month)
+- Real-time ingestion via Event Hubs
+- Data quality monitoring dashboard (Streamlit or Databricks SQL)
+- CI/CD deployment pipeline for notebooks
+- Unit tests for transformation logic
 
 ---
 
-### Module 4 — Customer intelligence engine
-
-Generates customer-level business intelligence used directly by the marketing team for targeting decisions.
-
-**Customer health score** is computed from:
-- Purchase frequency
-- Recency (days since last order)
-- Average order value
-- Return activity
-- Discount dependency ratio
-
-**Customer segments produced:**
-
-| Segment | Definition |
-|---|---|
-| High Value | High frequency, high spend, low discount dependency |
-| Loyal Customers | Consistent purchase history, moderate spend |
-| Discount Dependent | Majority of purchases during promotional periods |
-| At-Risk Customers | Declining recency, previously active |
-| Inactive Customers | No activity in 90+ days |
-
-**Discount dependency analysis** — identifies customers who purchase almost exclusively during high-discount periods, helping the business understand true margin contribution per customer.
-
----
-
-### Module 5 — Campaign analytics engine
-
-Analyses marketing effectiveness across dimensions that directly inform campaign planning.
-
-**Regional campaign analysis:**
-- Revenue contribution by region
-- Repeat purchase rate post-campaign
-- Geographic conversion trends
-
-**Discount impact analysis:**
-- Profitability vs discount rate
-- High-discount customer behaviour patterns
-- Low-margin customer group identification
-
-**Channel performance:**
-- App vs web vs in-store revenue share
-- Channel-level customer retention rates
-
-**Seasonal analysis:**
-- Monthly sales trend by category
-- Seasonal demand patterns across product types
-
----
-
-### Module 6 — Anomaly detection
-
-Identifies unusual patterns in business data that signal problems or opportunities requiring investigation.
-
-**Detection examples:**
-- Sudden drop in daily order volume
-- Abnormal refund or return spikes
-- Underperforming campaign regions
-- Unusually high discount dependency in a customer cohort
-- Declining repeat purchase activity
-
-**Method:** Statistical threshold-based detection combined with rolling average comparison — accessible and explainable without complex ML overhead.
-
----
-
-### Module 7 — Tableau dashboards
-
-Three executive-level dashboards built for business stakeholders.
-
-**Dashboard 1 — Campaign intelligence**
-- Campaign ROI and conversion trends
-- Regional performance map
-- Seasonal revenue patterns
-- Marketing effectiveness by channel
-
-**Dashboard 2 — Customer intelligence**
-- Customer health score distribution
-- High-value and at-risk customer groups
-- Discount-dependent user segments
-- Repeat purchase and churn-risk indicators
-
-**Dashboard 3 — Geographic opportunity**
-- Regional revenue heatmap
-- High-opportunity and underperforming zones
-- Customer density by city
-- Campaign targeting recommendations by region
-
----
-
-## Key business KPIs
-
-### Customer metrics
-- Repeat purchase rate
-- Average order value
-- Customer purchase frequency
-- Discount utilisation rate
-- Customer health score (composite)
-
-### Campaign metrics
-- Campaign ROI
-- Conversion rate
-- Revenue uplift (campaign vs baseline)
-- Retention improvement
-
-### Regional metrics
-- Regional revenue contribution
-- Top-performing cities
-- High-opportunity vs underperforming regions
-
----
-
-## How to run locally
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/shreyajoshi144/shopscope-retail-analytics.git
-cd shopscope-retail-analytics
-
-# 2. Install dependencies
-pip install -r requirements.txt
-
-# 3. Download the Olist dataset from Kaggle
-# Place CSV files inside data/raw/
-
-# 4. Run the ETL pipeline
-python pipeline/extract.py
-python pipeline/validate.py
-python pipeline/transform.py
-python pipeline/load.py
-
-# 5. Run analytics modules
-python analytics/customer_health.py
-python analytics/campaign_analysis.py
-python analytics/regional_analysis.py
-
-# 6. Export dashboard data
-python analytics/export_dashboard_data.py
-
-# 7. Launch local dashboard
-streamlit run dashboard/streamlit_app.py
-```
-
-Dashboard opens at `http://localhost:8501`
-
-For Airflow (optional):
-```bash
-pip install apache-airflow
-airflow standalone
-# Copy airflow_dags/retail_campaign_pipeline.py to ~/airflow/dags/
-```
-
----
-
-## Requirements
-
-```
-pandas>=2.0
-numpy>=1.24
-scikit-learn>=1.3
-plotly>=5.15
-streamlit>=1.25
-matplotlib>=3.7
-seaborn>=0.12
-sqlalchemy>=2.0
-```
-
-Optional:
-```
-apache-airflow>=2.7    # Workflow orchestration
-pyspark>=3.4           # Distributed processing
-```
-
-
----
-
-*Built as part of a retail analytics portfolio project exploring enterprise-grade data pipeline design.*
+*Built with Azure Databricks · PySpark · Delta Lake · Apache Airflow · Azure Data Lake Storage Gen2*
